@@ -16,6 +16,7 @@ const ESTADOS_UI = [
   { value: "pago", label: "Pago" },
   { value: "abonado_mensual", label: "Abonado mensual" },
   { value: "abonado_anual", label: "Abonado anual" },
+  { value: "exento", label: "Exento (personal/jugador)" },
 ];
 
 export default function Ingresos() {
@@ -24,6 +25,8 @@ export default function Ingresos() {
   const [hasta, setHasta] = useState(hoyISO());
   const [dni, setDni] = useState("");
   const [dniDebounced, setDniDebounced] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [nombreDebounced, setNombreDebounced] = useState("");
   const [tipo, setTipo] = useState(""); // '', 'socio', 'no_socio'
   const [estadoFiltro, setEstadoFiltro] = useState(""); // '', 'pendiente', 'pago', ...
 
@@ -47,6 +50,12 @@ export default function Ingresos() {
     return () => clearTimeout(t);
   }, [dni]);
 
+  // debounce Nombre (400ms)
+  useEffect(() => {
+    const t = setTimeout(() => setNombreDebounced(nombre.trim()), 400);
+    return () => clearTimeout(t);
+  }, [nombre]);
+
   async function fetchIngresos(p = page, l = limit) {
     setLoading(true);
     setErr("");
@@ -59,7 +68,8 @@ export default function Ingresos() {
 
       if (desde) qs.set("desde", desde);
       if (hasta) qs.set("hasta", hasta);
-      if (dniDebounced) qs.set("dni", dniDebounced);
+      if (dniDebounced) qs.set("dni_like", dniDebounced);  // 👈 parcial
+      if (nombreDebounced) qs.set("nombre", nombreDebounced); // 👈 parcial
       if (tipo) qs.set("tipo", tipo);
       if (estadoFiltro) qs.set("estado_pago", estadoFiltro);
 
@@ -79,7 +89,7 @@ export default function Ingresos() {
     setPage(1);
     fetchIngresos(1, limit);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [desde, hasta, dniDebounced, tipo, estadoFiltro, limit]);
+  }, [desde, hasta, dniDebounced, nombreDebounced, tipo, estadoFiltro, limit]);
 
   // cambio de página
   useEffect(() => {
@@ -116,7 +126,8 @@ export default function Ingresos() {
         nuevoValor === "pendiente" ? "pendiente" :
         nuevoValor === "pago" ? "pago" :
         nuevoValor === "abonado_mensual" ? "abonado mensual" :
-        "abonado anual";
+        nuevoValor === "abonado_anual" ? "abonado anual" :
+        "exento";
 
       await api.patch(`/ingresos/${id}/estado-pago`, { estado_pago: labelBackend });
     } catch (e) {
@@ -135,6 +146,7 @@ export default function Ingresos() {
       pago: "bg-emerald-100 text-emerald-800 border-emerald-200",
       abonado_mensual: "bg-blue-100 text-blue-800 border-blue-200",
       abonado_anual: "bg-purple-100 text-purple-800 border-purple-200",
+      exento: "bg-cyan-100 text-cyan-800 border-cyan-200",
     };
     const label = ESTADOS_UI.find(e => e.value === v)?.label || v;
     return (
@@ -168,18 +180,31 @@ export default function Ingresos() {
             className="border rounded px-3 py-2 text-sm"
           />
         </div>
+
         <div>
-          <label className="block text-sm text-gray-600 mb-1">DNI</label>
+          <label className="block text-sm text-gray-600 mb-1">DNI (parcial)</label>
           <input
             type="text"
             inputMode="numeric"
             pattern="\\d*"
             value={dni}
             onChange={(e) => setDni(e.target.value.replace(/\D/g, ""))}
-            placeholder="Ej: 40101601"
-            className="border rounded px-3 py-2 text-sm w-44"
+            placeholder="Ej: 4010"
+            className="border rounded px-3 py-2 text-sm w-40"
           />
         </div>
+
+        <div>
+          <label className="block text-sm text-gray-600 mb-1">Nombre (parcial)</label>
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="Ej: Juan Pérez"
+            className="border rounded px-3 py-2 text-sm w-64"
+          />
+        </div>
+
         <div>
           <label className="block text-sm text-gray-600 mb-1">Tipo</label>
           <select
@@ -192,6 +217,7 @@ export default function Ingresos() {
             <option value="no_socio">No socio</option>
           </select>
         </div>
+
         <div>
           <label className="block text-sm text-gray-600 mb-1">Estado</label>
           <select
@@ -207,6 +233,7 @@ export default function Ingresos() {
             ))}
           </select>
         </div>
+
         <div className="ml-auto flex items-center gap-2">
           <label className="text-sm text-gray-600">Filas:</label>
           <select

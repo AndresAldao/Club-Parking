@@ -82,7 +82,7 @@ const createTables = async () => {
       );
 
       -- =========================
-      -- Índices (evitamos redundantes)
+      -- Índices
       -- =========================
       CREATE INDEX IF NOT EXISTS idx_socios_nombre ON socios(apellido_nombre);
       CREATE INDEX IF NOT EXISTS idx_socios_estado ON socios(estado_general);
@@ -95,21 +95,16 @@ const createTables = async () => {
         ADD COLUMN IF NOT EXISTS patente VARCHAR(20),
         ADD COLUMN IF NOT EXISTS observacion TEXT;
 
-      -- Nuevo campo: estado_pago (default 'pendiente') y constraint de valores permitidos
+      -- Campo estado_pago con default
       ALTER TABLE ingresos_playa
         ADD COLUMN IF NOT EXISTS estado_pago VARCHAR(20) NOT NULL DEFAULT 'pendiente';
 
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint
-          WHERE conname = 'ingresos_playa_estado_pago_chk'
-        ) THEN
-          ALTER TABLE ingresos_playa
-            ADD CONSTRAINT ingresos_playa_estado_pago_chk
-            CHECK (estado_pago IN ('pago','pendiente','abonado_mensual','abonado_anual'));
-        END IF;
-      END$$;
+      -- Re-crear constraint para incluir 'exento'
+      ALTER TABLE ingresos_playa DROP CONSTRAINT IF EXISTS ingresos_playa_estado_pago_chk;
+
+      ALTER TABLE ingresos_playa
+        ADD CONSTRAINT ingresos_playa_estado_pago_chk
+        CHECK (estado_pago IN ('pago','pendiente','abonado_mensual','abonado_anual','exento'));
 
       -- Índices útiles para historial de ingresos
       CREATE INDEX IF NOT EXISTS idx_ingresos_socio     ON ingresos_playa(socio_id);
